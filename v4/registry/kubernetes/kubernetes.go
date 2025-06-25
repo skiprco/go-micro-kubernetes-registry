@@ -128,23 +128,16 @@ func (c *kregistry) Register(s *registry.Service, opts ...registry.RegisterOptio
 		return errors.Wrap(err, "failed to register")
 	}
 
-	// encode micro service
-	b, err := json.Marshal(s)
-	if err != nil {
-		return err
-	}
-
-	svc := string(b)
-
 	pod := &client.Pod{
 		Metadata: &client.Meta{
 			Labels: map[string]*string{
 				labelTypeKey:                             &labelTypeValueService,
 				svcSelectorPrefix + serviceName(svcName): &svcSelectorValue,
 			},
-			Annotations: map[string]*string{
-				annotationServiceKeyPrefix + serviceName(svcName): &svc,
-			},
+			// Remove this culprit
+			// Annotations: map[string]*string{
+			// 	annotationServiceKeyPrefix + serviceName(svcName): &svc,
+			// },
 		},
 	}
 
