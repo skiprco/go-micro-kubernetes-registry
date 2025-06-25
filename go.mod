@@ -3,7 +3,6 @@ module github.com/skiprco/go-micro-kubernetes-registry
 go 1.22.0
 
 require (
-	github.com/go-micro/plugins/v4/registry/kubernetes v1.1.2
 	github.com/pkg/errors v0.9.1
 	go-micro.dev/v4 v4.9.0
 )
