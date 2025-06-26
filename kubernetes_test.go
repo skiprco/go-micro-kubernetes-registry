@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	"encoding/json"
+
 	"errors"
 	"fmt"
 	"reflect"
@@ -69,7 +69,9 @@ func TestRegister(t *testing.T) {
 
 		// unmarshal service data from annotation and compare
 		// service passed in to .Register()
-		if err := json.Unmarshal([]byte(*svcData), &service); err != nil {
+		var err error
+		service, err = compactDecode([]byte(*svcData))
+		if err != nil {
 			t.Fatalf("did not expect register unmarshal to fail %v", err)
 		}
 	}
@@ -109,16 +111,16 @@ func TestRegisterTwoDifferentServicesOnePod(t *testing.T) {
 
 	// unmarshal service data from annotation and compare
 	// service passed in to .Register()
-	var service1 *registry.Service
-	if err := json.Unmarshal([]byte(*svcData1), &service1); err != nil {
+	service1, err := compactDecode([]byte(*svcData1))
+	if err != nil {
 		t.Fatalf("did not expect register unmarshal to fail %v", err)
 	}
 	if !reflect.DeepEqual(svc1, service1) {
 		t.Fatal("services did not match")
 	}
 
-	var service2 *registry.Service
-	if err := json.Unmarshal([]byte(*svcData2), &service2); err != nil {
+	service2, err := compactDecode([]byte(*svcData2))
+	if err != nil {
 		t.Fatalf("did not expect register unmarshal to fail %v", err)
 	}
 	if !reflect.DeepEqual(svc2, service2) {
@@ -171,16 +173,17 @@ func TestRegisterTwoDifferentServicesTwoPods(t *testing.T) {
 
 	// unmarshal service data from annotation and compare
 	// service passed in to .Register()
-	var service1 *registry.Service
-	if err := json.Unmarshal([]byte(*svcData1), &service1); err != nil {
+	var err error
+	service1, err := compactDecode([]byte(*svcData1))
+	if err != nil {
 		t.Fatalf("did not expect register unmarshal to fail %v", err)
 	}
 	if !reflect.DeepEqual(svc1, service1) {
 		t.Fatal("services did not match")
 	}
 
-	var service2 *registry.Service
-	if err := json.Unmarshal([]byte(*svcData2), &service2); err != nil {
+	service2, err := compactDecode([]byte(*svcData2))
+	if err != nil {
 		t.Fatalf("did not expect register unmarshal to fail %v", err)
 	}
 	if !reflect.DeepEqual(svc2, service2) {
@@ -220,16 +223,17 @@ func TestRegisterSingleVersionedServiceTwoPods(t *testing.T) {
 
 	// unmarshal service data from annotation and compare
 	// service passed in to .Register()
-	var service1 *registry.Service
-	if err := json.Unmarshal([]byte(*svcData1), &service1); err != nil {
+	var err error
+	service1, err := compactDecode([]byte(*svcData1))
+	if err != nil {
 		t.Fatalf("did not expect register unmarshal to fail %v", err)
 	}
 	if !reflect.DeepEqual(svc1, service1) {
 		t.Fatal("services did not match")
 	}
 
-	var service2 *registry.Service
-	if err := json.Unmarshal([]byte(*svcData2), &service2); err != nil {
+	service2, err := compactDecode([]byte(*svcData2))
+	if err != nil {
 		t.Fatalf("did not expect register unmarshal to fail %v", err)
 	}
 	if !reflect.DeepEqual(svc2, service2) {
