@@ -2,11 +2,8 @@
 package kubernetes
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -57,47 +54,26 @@ var podSelector = map[string]string{
 	labelTypeKey: labelTypeValueService,
 }
 
-// compactEncode serializes a registry.Service using gzip+JSON
+// compactEncode serializes a registry.Service to keep only the essential
 func compactEncode(s *registry.Service) ([]byte, error) {
+	s.Endpoints = nil // remove endpoints to reduce size
 	// JSON encode
 	jsonData, err := json.Marshal(s)
 	if err != nil {
 		return nil, err
 	}
-	
-	// Gzip compress
-	var buf bytes.Buffer
-	writer := gzip.NewWriter(&buf)
-	if _, err := writer.Write(jsonData); err != nil {
-		return nil, err
-	}
-	if err := writer.Close(); err != nil {
-		return nil, err
-	}
-	
-	return buf.Bytes(), nil
+
+	return jsonData, nil
 }
 
-// compactDecode deserializes a registry.Service from gzip+JSON
+// compactDecode deserializes a registry.Service from the compact format
 func compactDecode(data []byte) (*registry.Service, error) {
-	// Gzip decompress
-	reader, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-	
-	jsonData, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
-	
 	// JSON decode
 	var s registry.Service
-	if err := json.Unmarshal(jsonData, &s); err != nil {
+	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, err
 	}
-	
+
 	return &s, nil
 }
 
