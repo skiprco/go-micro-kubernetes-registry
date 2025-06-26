@@ -3,8 +3,10 @@ package kubernetes
 
 import (
 	"bytes"
-	"encoding/gob"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -53,6 +55,50 @@ var (
 // podSelector.
 var podSelector = map[string]string{
 	labelTypeKey: labelTypeValueService,
+}
+
+// compactEncode serializes a registry.Service using gzip+JSON
+func compactEncode(s *registry.Service) ([]byte, error) {
+	// JSON encode
+	jsonData, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Gzip compress
+	var buf bytes.Buffer
+	writer := gzip.NewWriter(&buf)
+	if _, err := writer.Write(jsonData); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	
+	return buf.Bytes(), nil
+}
+
+// compactDecode deserializes a registry.Service from gzip+JSON
+func compactDecode(data []byte) (*registry.Service, error) {
+	// Gzip decompress
+	reader, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	
+	jsonData, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	
+	// JSON decode
+	var s registry.Service
+	if err := json.Unmarshal(jsonData, &s); err != nil {
+		return nil, err
+	}
+	
+	return &s, nil
 }
 
 func init() {
@@ -130,13 +176,12 @@ func (c *kregistry) Register(s *registry.Service, opts ...registry.RegisterOptio
 	}
 
 	// encode micro service
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(s); err != nil {
+	b, err := compactEncode(s)
+	if err != nil {
 		return err
 	}
 
-	svc := buf.String()
+	svc := string(b)
 
 	pod := &client.Pod{
 		Metadata: &client.Meta{
@@ -220,11 +265,11 @@ func (c *kregistry) GetService(name string, opts ...registry.GetOption) ([]*regi
 		var svc registry.Service
 
 		// unmarshal service string
-		buf := bytes.NewReader([]byte(*svcStr))
-		dec := gob.NewDecoder(buf)
-		if err := dec.Decode(&svc); err != nil {
+		svcPtr, err := compactDecode([]byte(*svcStr))
+		if err != nil {
 			return nil, fmt.Errorf("could not unmarshal service '%s' from pod annotation", name)
 		}
+		svc = *svcPtr
 
 		// merge up pod service & ip with versioned service.
 		vs, ok := svcs[svc.Version]
@@ -266,12 +311,11 @@ func (c *kregistry) ListServices(opts ...registry.ListOption) ([]*registry.Servi
 
 			// we have to unmarshal the annotation itself since the
 			// key is encoded to match the regex restriction.
-			var svc registry.Service
-			buf := bytes.NewReader([]byte(*v))
-			dec := gob.NewDecoder(buf)
-			if err := dec.Decode(&svc); err != nil {
+			svcPtr, err := compactDecode([]byte(*v))
+			if err != nil {
 				continue
 			}
+			svc := *svcPtr
 
 			s, ok := svcs[svc.Name+svc.Version]
 			if !ok {
