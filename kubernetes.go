@@ -56,7 +56,7 @@ var podSelector = map[string]string{
 
 // compactEncode serializes a registry.Service to keep only the essential
 func compactEncode(s *registry.Service) ([]byte, error) {
-	s.Endpoints = nil // remove endpoints to reduce size
+	s.Endpoints = []*registry.Endpoint{} // remove endpoints to reduce size
 	// JSON encode
 	jsonData, err := json.Marshal(s)
 	if err != nil {
