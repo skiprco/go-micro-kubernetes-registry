@@ -2,7 +2,8 @@
 package kubernetes
 
 import (
-	"encoding/json"
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"os"
 	"regexp"
@@ -128,16 +129,24 @@ func (c *kregistry) Register(s *registry.Service, opts ...registry.RegisterOptio
 		return errors.Wrap(err, "failed to register")
 	}
 
+	// encode micro service
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(s); err != nil {
+		return err
+	}
+
+	svc := buf.String()
+
 	pod := &client.Pod{
 		Metadata: &client.Meta{
 			Labels: map[string]*string{
 				labelTypeKey:                             &labelTypeValueService,
 				svcSelectorPrefix + serviceName(svcName): &svcSelectorValue,
 			},
-			// Remove this culprit
-			// Annotations: map[string]*string{
-			// 	annotationServiceKeyPrefix + serviceName(svcName): &svc,
-			// },
+			Annotations: map[string]*string{
+				annotationServiceKeyPrefix + serviceName(svcName): &svc,
+			},
 		},
 	}
 
@@ -211,8 +220,9 @@ func (c *kregistry) GetService(name string, opts ...registry.GetOption) ([]*regi
 		var svc registry.Service
 
 		// unmarshal service string
-		err := json.Unmarshal([]byte(*svcStr), &svc)
-		if err != nil {
+		buf := bytes.NewReader([]byte(*svcStr))
+		dec := gob.NewDecoder(buf)
+		if err := dec.Decode(&svc); err != nil {
 			return nil, fmt.Errorf("could not unmarshal service '%s' from pod annotation", name)
 		}
 
@@ -257,7 +267,9 @@ func (c *kregistry) ListServices(opts ...registry.ListOption) ([]*registry.Servi
 			// we have to unmarshal the annotation itself since the
 			// key is encoded to match the regex restriction.
 			var svc registry.Service
-			if err := json.Unmarshal([]byte(*v), &svc); err != nil {
+			buf := bytes.NewReader([]byte(*v))
+			dec := gob.NewDecoder(buf)
+			if err := dec.Decode(&svc); err != nil {
 				continue
 			}
 
